@@ -1,0 +1,46 @@
+# Copyright (C) 2026 Octavio Rossell Tabet
+# This file is distributed under the same license as the Tasas BCV plugin.
+msgid ""
+msgstr ""
+"Project-Id-Version: Tasas BCV 1.1.0\n"
+"Report-Msgid-Bugs-To: octavio.rossell@gmail.com\n"
+"POT-Creation-Date: 2026-08-14 20:37-0400\n"
+"PO-Revision-Date: 2026-08-14 20:37-0400\n"
+"Last-Translator: Octavio Rossell Tabet <octavio.rossell@gmail.com>\n"
+"Language-Team: English <octavio.rossell@gmail.com>\n"
+"Language: en_US\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Generator: Hand-crafted\n"
+"X-Domain: tasas-bcv-automaticas\n"
+
+#: tasas-bcv-automaticas.php:41
+msgid "Tasas temporalmente no disponibles."
+msgstr "Exchange rates temporarily unavailable."
+
+#: tasas-bcv-automaticas.php:56
+msgid "USD"
+msgstr "USD"
+
+#: tasas-bcv-automaticas.php:57
+msgid "EUR"
+msgstr "EUR"
+
+#: tasas-bcv-automaticas.php:58
+msgid "CNY"
+msgstr "CNY"
+
+#: tasas-bcv-automaticas.php:62
+msgid "Tasas Oficiales BCV"
+msgstr "Official BCV Exchange Rates"
+
+#: tasas-bcv-automaticas.php:83
+msgid "No se pudieron extraer las tasas."
+msgstr "Could not extract exchange rates."
+
+#: tasas-bcv-automaticas.php:89
+#, php-format
+msgid "Fecha: %s"
+msgstr "Date: %s"
