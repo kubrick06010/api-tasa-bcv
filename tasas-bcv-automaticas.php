@@ -74,8 +74,8 @@ function ob_parsear_tasas_bcv($html) {
         $rates[$currency] = $value;
     }
 
-    if (empty($rates)) {
-        return new WP_Error('bcv_rates_not_found', __('No se pudieron extraer tasas válidas.', 'tasas-bcv-automaticas'));
+    if (count($rates) !== count($selectors)) {
+        return new WP_Error('bcv_rates_incomplete', __('La respuesta del BCV no contiene todas las tasas esperadas.', 'tasas-bcv-automaticas'));
     }
 
     $date = null;
@@ -102,7 +102,7 @@ function ob_parsear_tasas_bcv($html) {
 function ob_fetch_tasas_bcv() {
     $response = wp_remote_get('https://www.bcv.org.ve', array(
         'timeout'    => 20,
-        'user-agent' => 'WordPress/Tasas-BCV 1.2.0; ' . home_url('/'),
+        'user-agent' => 'WordPress/Tasas-BCV 1.2.0',
     ));
 
     if (is_wp_error($response)) {

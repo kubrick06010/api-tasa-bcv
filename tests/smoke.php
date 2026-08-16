@@ -85,6 +85,14 @@ if (class_exists('DOMDocument')) {
     ob_test_assert(abs($parsed['rates']['USD'] - 36.1234) < 0.000001, 'USD parser normalization');
     ob_test_assert(abs($parsed['rates']['EUR'] - 39.5012) < 0.000001, 'EUR parser normalization');
     ob_test_assert(abs($parsed['rates']['CNY'] - 4.995) < 0.000001, 'CNY parser normalization');
+
+    $partial = '<html><body>'
+        . '<div id="dolar"><strong>36,12340000</strong></div>'
+        . '<div id="yuan"><strong>4,99500000</strong></div>'
+        . '</body></html>';
+    $partial_result = ob_parsear_tasas_bcv($partial);
+    ob_test_assert(is_wp_error($partial_result), 'partial BCV response returns WP_Error');
+    ob_test_assert($partial_result->get_error_code() === 'bcv_rates_incomplete', 'partial BCV response error code');
 } else {
     fwrite(STDOUT, "SKIP: DOM parser test (ext-dom not installed)\n");
 }
