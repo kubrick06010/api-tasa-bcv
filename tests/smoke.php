@@ -9,8 +9,10 @@ define('ABSPATH', __DIR__ . '/');
 
 class WP_Error {
     private $code;
-    public function __construct($code = '', $message = '', $data = null) { $this->code = $code; }
+    private $data;
+    public function __construct($code = '', $message = '', $data = null) { $this->code = $code; $this->data = $data; }
     public function get_error_code() { return $this->code; }
+    public function get_error_data() { return $this->data; }
 }
 class WP_REST_Server { const READABLE = 'GET'; }
 
@@ -48,7 +50,7 @@ ob_test_assert(ob_formatear_tasa_bcv(36.1234, 4) === '36,1234', 'number formatti
 
 $fresh = array(
     'base' => 'VES',
-    'rates' => array('USD' => 36.1234),
+    'rates' => array('USD' => 36.1234, 'EUR' => 39.5012, 'CNY' => 4.995),
     'date' => '16/08/2026',
     'fetched_at' => 123,
     'source' => 'BCV',
@@ -56,7 +58,10 @@ $fresh = array(
 );
 $GLOBALS['ob_test_transients'][OB_BCV_FRESH_CACHE_KEY] = $fresh;
 $data = ob_obtener_datos_bcv();
-ob_test_assert($data['rates']['USD'] === 36.1234 && $data['stale'] === false, 'fresh cache');
+ob_test_assert($data['rates']['USD'] === 36.1234 && $data['rates']['EUR'] === 39.5012 && $data['rates']['CNY'] === 4.995 && $data['stale'] === false, 'fresh cache');
+
+$rest = ob_rest_tasas_bcv();
+ob_test_assert(is_array($rest) && $rest['rates']['EUR'] === 39.5012, 'REST returns valid rates');
 
 $html = ob_obtener_tasas_bcv(array('moneda' => 'USD', 'decimales' => 4));
 ob_test_assert(strpos($html, '36,1234') !== false && strpos($html, 'USD') !== false, 'shortcode currency and decimals');
@@ -66,7 +71,13 @@ $GLOBALS['ob_test_transients'][OB_BCV_STALE_CACHE_KEY] = $fresh;
 $GLOBALS['ob_test_remote_response'] = new WP_Error('timeout');
 $data = ob_obtener_datos_bcv();
 ob_test_assert(!empty($data['stale']) && $data['refresh_error'] === 'timeout', 'stale fallback');
-ob_test_assert(!isset($GLOBALS['ob_test_last_remote_args']['sslverify']) || $GLOBALS['ob_test_last_remote_args']['sslverify'] !== false, 'TLS verification remains enabled');
+ob_test_assert(isset($GLOBALS['ob_test_last_remote_args']['sslverify']) && $GLOBALS['ob_test_last_remote_args']['sslverify'] === false, 'BCV-only temporary TLS workaround');
+
+$GLOBALS['ob_test_transients'] = array();
+$GLOBALS['ob_test_remote_response'] = new WP_Error('timeout');
+$rest_error = ob_rest_tasas_bcv();
+ob_test_assert(is_wp_error($rest_error) && $rest_error->get_error_code() === 'bcv_unavailable', 'REST returns 503 when no valid data exists');
+ob_test_assert($rest_error->get_error_data()['status'] === 503, 'REST unavailable status');
 
 $GLOBALS['ob_test_transients'] = array();
 $GLOBALS['ob_test_remote_response'] = array('response' => array('code' => 503), 'body' => 'unavailable');
@@ -85,6 +96,17 @@ if (class_exists('DOMDocument')) {
     ob_test_assert(abs($parsed['rates']['USD'] - 36.1234) < 0.000001, 'USD parser normalization');
     ob_test_assert(abs($parsed['rates']['EUR'] - 39.5012) < 0.000001, 'EUR parser normalization');
     ob_test_assert(abs($parsed['rates']['CNY'] - 4.995) < 0.000001, 'CNY parser normalization');
+
+    $real_shape = '<div id="euro"><div><strong>894,49018618</strong></div></div>'
+        . '<div id="yuan"><div><strong>114,60548294</strong></div></div>'
+        . '<div id="dolar"><div><strong>772,54410000</strong></div></div>';
+    $real_shape_result = ob_parsear_tasas_bcv($real_shape);
+    ob_test_assert(!is_wp_error($real_shape_result), 'current BCV HTML shape');
+    ob_test_assert(abs($real_shape_result['rates']['USD'] - 772.5441) < 0.000001, 'current BCV USD normalization');
+    ob_test_assert(abs($real_shape_result['rates']['EUR'] - 894.49018618) < 0.000001, 'current BCV EUR normalization');
+    ob_test_assert(abs($real_shape_result['rates']['CNY'] - 114.60548294) < 0.000001, 'current BCV CNY normalization');
+
+    ob_test_assert(ob_normalizar_tasa_bcv('1.234,5678') === '1234.5678', 'mixed thousands and decimal normalization');
 
     $partial = '<html><body>'
         . '<div id="dolar"><strong>36,12340000</strong></div>'

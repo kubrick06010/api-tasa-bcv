@@ -60,7 +60,7 @@ function ob_parsear_tasas_bcv($html) {
         }
 
         $raw = trim(preg_replace('/\s+/u', ' ', $nodes->item(0)->nodeValue));
-        $normalized = str_replace(array('.', ','), array('', '.'), $raw);
+        $normalized = ob_normalizar_tasa_bcv($raw);
 
         if (!is_numeric($normalized)) {
             continue;
@@ -95,6 +95,46 @@ function ob_parsear_tasas_bcv($html) {
 }
 
 /**
+ * Normalize BCV numbers such as "123,45670000" to a PHP decimal string.
+ * BCV uses a comma as decimal separator; also handle thousands separators
+ * defensively when both separators are present.
+ *
+ * @param string $raw
+ * @return string
+ */
+function ob_normalizar_tasa_bcv($raw) {
+    $value = preg_replace('/[^0-9.,+-]/', '', (string) $raw);
+    $comma = strrpos($value, ',');
+    $dot = strrpos($value, '.');
+
+    if ($comma !== false && $dot !== false) {
+        $decimal = max($comma, $dot);
+        $integer = preg_replace('/[.,]/', '', substr($value, 0, $decimal));
+        return $integer . '.' . substr($value, $decimal + 1);
+    }
+
+    if ($comma !== false) {
+        return str_replace(',', '.', $value);
+    }
+
+    return $value;
+}
+
+function ob_bcv_rates_are_complete($data) {
+    if (!is_array($data) || !isset($data['rates']) || !is_array($data['rates'])) {
+        return false;
+    }
+
+    foreach (array('USD', 'EUR', 'CNY') as $currency) {
+        if (!isset($data['rates'][$currency]) || !is_numeric($data['rates'][$currency]) || (float) $data['rates'][$currency] <= 0) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/**
  * Fetch and parse rates directly from BCV.
  *
  * @return array|WP_Error
@@ -102,6 +142,9 @@ function ob_parsear_tasas_bcv($html) {
 function ob_fetch_tasas_bcv() {
     $response = wp_remote_get('https://www.bcv.org.ve', array(
         'timeout'    => 20,
+        // TEMPORAL: BCV presenta problemas de validación de cadena para
+        // determinados clientes OpenSSL. Eliminar cuando BCV corrija TLS.
+        'sslverify'  => false,
         'user-agent' => 'WordPress/Tasas-BCV 1.2.0',
     ));
 
@@ -130,7 +173,7 @@ function ob_fetch_tasas_bcv() {
 function ob_obtener_datos_bcv($force_refresh = false) {
     if (!$force_refresh) {
         $cached = get_transient(OB_BCV_FRESH_CACHE_KEY);
-        if (is_array($cached) && !empty($cached['rates'])) {
+        if (ob_bcv_rates_are_complete($cached)) {
             $cached['stale'] = false;
             return $cached;
         }
@@ -144,7 +187,7 @@ function ob_obtener_datos_bcv($force_refresh = false) {
     }
 
     $last_valid = get_transient(OB_BCV_STALE_CACHE_KEY);
-    if (is_array($last_valid) && !empty($last_valid['rates'])) {
+    if (ob_bcv_rates_are_complete($last_valid)) {
         $last_valid['stale'] = true;
         $last_valid['refresh_error'] = $fresh->get_error_code();
         return $last_valid;
