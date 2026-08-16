@@ -1,106 +1,94 @@
-# Tasas BCV - WordPress Plugin
+# Tasas BCV - WordPress Plugin & API
 
-[![License: GPL v2](https://img.shields.io/badge/License-GPL%20v2-blue.svg)](https://www.gnu.org/licenses/gpl-2.0.html)
-[![WordPress](https://img.shields.io/badge/WordPress-5.0%2B-blue)](https://wordpress.org)
+**Tasas BCV** fetches official USD, EUR and CNY exchange rates from the Banco Central de Venezuela (BCV), caches normalized data in WordPress, renders it through a shortcode, and exposes a read-only REST endpoint.
 
-**Tasas BCV** is a lightweight, efficient WordPress plugin that automatically fetches official exchange rates (USD, EUR, CNY) from the Central Bank of Venezuela (Banco Central de Venezuela - BCV) and displays them via a clean shortcode.
+## Features
 
----
+- Official BCV rates for USD, EUR and CNY.
+- HTTPS certificate verification uses WordPress defaults; TLS verification is never disabled.
+- HTTP status and parsed values are validated before entering the cache.
+- Fresh cache for 4 hours plus a 7-day last-known-good fallback when BCV is temporarily unavailable.
+- `[tasa_bcv]` shortcode with optional currency and decimal parameters.
+- Public read-only REST endpoint at `/wp-json/tasas-bcv/v1/rates`.
+- No Composer or third-party PHP dependencies.
 
-## Description
+## Installation
 
-The plugin parses official rates published on the BCV website (`https://www.bcv.org.ve`) and caches the formatted output using WordPress transients for 4 hours. This minimizes external requests and ensures your WordPress site loads fast.
+Copy the plugin directory into `wp-content/plugins/tasas-bcv-automaticas/` or build the installable ZIP with:
 
-### Features
+```bash
+./build-release.sh
+```
 
-- 💵 **Currencies Supported**: US Dollar (USD), Euro (EUR), and Chinese Yuan (CNY).
-- ⚡ **Performance Optimized**: Uses 4-hour transient caching (`bcv_widget_cache`).
-- 🧩 **Shortcode Ready**: Display exchange rates anywhere using `[tasa_bcv]`.
-- 🌍 **Internationalization (i18n)**: Fully translated into English (`en_US`) and Spanish (`es_ES`).
-- 🛡️ **Safe XML Parsing**: Implements strict `libxml` state restoration and error clearing.
+Then activate **Tasas BCV** in WordPress.
 
----
+## Shortcode
 
-## Install
+Display all rates:
 
-### Manual Installation via WordPress Admin
+```text
+[tasa_bcv]
+```
 
-1. Download the latest `tasas-bcv-automaticas.zip` release from the [Releases](https://github.com/octaviotron/wordpress-tasa-bcv/releases) section.
-2. In your WordPress Admin Dashboard, navigate to **Plugins > Add New > Upload Plugin**.
-3. Choose the `.zip` file and click **Install Now**.
-4. Activate the plugin.
+Display one currency with four decimals:
 
-### Manual Installation via FTP / File System
+```text
+[tasa_bcv moneda="USD" decimales="4"]
+```
 
-1. Clone or extract this repository into your plugins directory:
-   ```bash
-   wp-content/plugins/tasas-bcv-automaticas/
-   ```
-2. Go to **Plugins > Installed Plugins** in WordPress admin and click **Activate**.
+Supported currencies are `USD`, `EUR` and `CNY`. Decimal precision is clamped between 0 and 6.
 
----
+## REST API
 
-## Usage
+```text
+GET /wp-json/tasas-bcv/v1/rates
+```
 
-### Using the Shortcode
+Example response:
 
-Place the `[tasa_bcv]` shortcode anywhere in your content:
-
-- **Gutenberg Block Editor**: Add a Shortcode block and enter `[tasa_bcv]`.
-- **Classic Editor**: Paste `[tasa_bcv]` directly into the text editor.
-- **Widgets**: Add a Text or Custom HTML widget in your sidebar/footer with `[tasa_bcv]`.
-
-### Theme PHP Template Integration
-
-To embed the exchange rates directly inside your WordPress theme templates:
-
-```php
-<?php
-if ( shortcode_exists( 'tasa_bcv' ) ) {
-    echo do_shortcode( '[tasa_bcv]' );
+```json
+{
+  "base": "VES",
+  "rates": {
+    "USD": 36.1234,
+    "EUR": 39.5012,
+    "CNY": 4.995
+  },
+  "date": "16/08/2026",
+  "fetched_at": 1786914000,
+  "source": "BCV",
+  "stale": false
 }
-?>
 ```
 
----
+When BCV cannot be refreshed but a last-known-good value exists, the endpoint still returns HTTP 200 with `"stale": true` and a `refresh_error` field. If no valid data exists at all, it returns HTTP 503.
 
-## Folder Structure
+## Cache behaviour
 
+The plugin stores normalized data rather than rendered HTML:
+
+- `bcv_rates_cache`: fresh data, 4-hour TTL.
+- `bcv_rates_last_valid`: last successful response, 7-day TTL.
+
+This lets the shortcode and REST endpoint share one source of truth and keeps the site usable during short BCV outages.
+
+## Tests
+
+Run:
+
+```bash
+php -l tasas-bcv-automaticas.php
+php tests/smoke.php
 ```
-wordpress-tasa-bcv/
-├── build-release.sh            # Script to build release zip package
-├── languages/
-│   ├── tasas-bcv-automaticas.pot
-│   ├── tasas-bcv-automaticas-en_US.po
-│   ├── tasas-bcv-automaticas-en_US.mo
-│   ├── tasas-bcv-automaticas-es_ES.po
-│   └── tasas-bcv-automaticas-es_ES.mo
-├── LICENSE
-├── README.md                   # Repository README (English)
-├── readme.txt                  # WordPress.org standard plugin documentation
-└── tasas-bcv-automaticas.php  # Main plugin file
-```
 
----
+The smoke test runs without WordPress by providing minimal stubs. If PHP `ext-dom` is installed it also exercises the XPath parser; otherwise that parser-specific assertion is explicitly skipped.
 
-## Contribute
+## Requirements
 
-Contributions, bug reports, and feature requests are welcome!
-
-1. Fork the repository on GitHub: [github.com/octaviotron/wordpress-tasa-bcv](https://github.com/octaviotron/wordpress-tasa-bcv)
-2. Create a new topic branch (`git checkout -b feature/my-new-feature`).
-3. Commit your changes (`git commit -am 'Add new feature'`).
-4. Push to the branch (`git push origin feature/my-new-feature`).
-5. Open a Pull Request.
-
-### Developer Info
-
-- **Author**: Octavio Rossell Tabet
-- **Email**: [octavio.rossell@gmail.com](mailto:octavio.rossell@gmail.com)
-- **GitHub**: [@octaviotron](https://github.com/octaviotron)
-
----
+- WordPress 5.0+
+- PHP 7.4+
+- PHP DOM extension (`ext-dom`) in production, as required by `DOMDocument`/`DOMXPath`.
 
 ## License
 
-This project is licensed under the GPL-2.0-or-later License - see the [LICENSE](LICENSE) file for details.
+GPL-2.0-or-later. See `LICENSE`.
