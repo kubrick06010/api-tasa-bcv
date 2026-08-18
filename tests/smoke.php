@@ -50,7 +50,7 @@ ob_test_assert(ob_formatear_tasa_bcv(36.1234, 4) === '36,1234', 'number formatti
 
 $fresh = array(
     'base' => 'VES',
-    'rates' => array('USD' => 36.1234, 'EUR' => 39.5012, 'CNY' => 4.995),
+    'rates' => array('USD' => 36.1234, 'EUR' => 39.5012, 'CNY' => 4.995, 'TRY' => 16.1446144, 'RUB' => 9.10428493),
     'date' => '16/08/2026',
     'fetched_at' => 123,
     'source' => 'BCV',
@@ -58,13 +58,21 @@ $fresh = array(
 );
 $GLOBALS['ob_test_transients'][OB_BCV_FRESH_CACHE_KEY] = $fresh;
 $data = ob_obtener_datos_bcv();
-ob_test_assert($data['rates']['USD'] === 36.1234 && $data['rates']['EUR'] === 39.5012 && $data['rates']['CNY'] === 4.995 && $data['stale'] === false, 'fresh cache');
+ob_test_assert($data['rates']['USD'] === 36.1234 && $data['rates']['EUR'] === 39.5012 && $data['rates']['CNY'] === 4.995 && $data['rates']['TRY'] === 16.1446144 && $data['rates']['RUB'] === 9.10428493 && $data['stale'] === false, 'fresh cache contains all five currencies');
 
 $rest = ob_rest_tasas_bcv();
 ob_test_assert(is_array($rest) && $rest['rates']['EUR'] === 39.5012, 'REST returns valid rates');
+ob_test_assert($rest['rates']['TRY'] === 16.1446144 && $rest['rates']['RUB'] === 9.10428493, 'REST returns TRY and RUB');
 
 $html = ob_obtener_tasas_bcv(array('moneda' => 'USD', 'decimales' => 4));
 ob_test_assert(strpos($html, '36,1234') !== false && strpos($html, 'USD') !== false, 'shortcode currency and decimals');
+ob_test_assert(strpos(ob_obtener_tasas_bcv(array('moneda' => 'USD')), 'USD') !== false, 'shortcode supports USD');
+$all_html = ob_obtener_tasas_bcv();
+foreach (array('USD', 'EUR', 'CNY', 'TRY', 'RUB') as $currency) {
+    ob_test_assert(strpos($all_html, $currency) !== false, "default shortcode includes {$currency}");
+}
+ob_test_assert(strpos(ob_obtener_tasas_bcv(array('moneda' => 'TRY')), 'TRY') !== false, 'shortcode supports TRY');
+ob_test_assert(strpos(ob_obtener_tasas_bcv(array('moneda' => 'RUB')), 'RUB') !== false, 'shortcode supports RUB');
 
 unset($GLOBALS['ob_test_transients'][OB_BCV_FRESH_CACHE_KEY]);
 $GLOBALS['ob_test_transients'][OB_BCV_STALE_CACHE_KEY] = $fresh;
@@ -89,6 +97,8 @@ if (class_exists('DOMDocument')) {
         . '<div id="dolar"><strong>36,12340000</strong></div>'
         . '<div id="euro"><strong>39,50120000</strong></div>'
         . '<div id="yuan"><strong>4,99500000</strong></div>'
+        . '<div id="lira"><strong>16,14461440</strong></div>'
+        . '<div id="rublo"><strong>9,10428493</strong></div>'
         . '<span class="date-display-single">16/08/2026</span>'
         . '</body></html>';
     $parsed = ob_parsear_tasas_bcv($sample);
@@ -96,25 +106,39 @@ if (class_exists('DOMDocument')) {
     ob_test_assert(abs($parsed['rates']['USD'] - 36.1234) < 0.000001, 'USD parser normalization');
     ob_test_assert(abs($parsed['rates']['EUR'] - 39.5012) < 0.000001, 'EUR parser normalization');
     ob_test_assert(abs($parsed['rates']['CNY'] - 4.995) < 0.000001, 'CNY parser normalization');
+    ob_test_assert(abs($parsed['rates']['TRY'] - 16.1446144) < 0.000001, 'TRY parser normalization');
+    ob_test_assert(abs($parsed['rates']['RUB'] - 9.10428493) < 0.000001, 'RUB parser normalization');
 
     $real_shape = '<div id="euro"><div><strong>894,49018618</strong></div></div>'
         . '<div id="yuan"><div><strong>114,60548294</strong></div></div>'
         . '<div id="dolar"><div><strong>772,54410000</strong></div></div>';
+    $real_shape .= '<div id="lira"><div><strong>16,14461440</strong></div></div>'
+        . '<div id="rublo"><div><strong>9,10428493</strong></div></div>';
     $real_shape_result = ob_parsear_tasas_bcv($real_shape);
     ob_test_assert(!is_wp_error($real_shape_result), 'current BCV HTML shape');
     ob_test_assert(abs($real_shape_result['rates']['USD'] - 772.5441) < 0.000001, 'current BCV USD normalization');
     ob_test_assert(abs($real_shape_result['rates']['EUR'] - 894.49018618) < 0.000001, 'current BCV EUR normalization');
     ob_test_assert(abs($real_shape_result['rates']['CNY'] - 114.60548294) < 0.000001, 'current BCV CNY normalization');
+    ob_test_assert(abs($real_shape_result['rates']['TRY'] - 16.1446144) < 0.000001, 'current BCV TRY normalization');
+    ob_test_assert(abs($real_shape_result['rates']['RUB'] - 9.10428493) < 0.000001, 'current BCV RUB normalization');
 
     ob_test_assert(ob_normalizar_tasa_bcv('1.234,5678') === '1234.5678', 'mixed thousands and decimal normalization');
 
     $partial = '<html><body>'
         . '<div id="dolar"><strong>36,12340000</strong></div>'
         . '<div id="yuan"><strong>4,99500000</strong></div>'
+        . '<div id="lira"><strong>16,14461440</strong></div>'
+        . '<div id="rublo"><strong>9,10428493</strong></div>'
         . '</body></html>';
     $partial_result = ob_parsear_tasas_bcv($partial);
     ob_test_assert(is_wp_error($partial_result), 'partial BCV response returns WP_Error');
     ob_test_assert($partial_result->get_error_code() === 'bcv_rates_incomplete', 'partial BCV response error code');
+
+    foreach (array_keys(ob_bcv_supported_selectors()) as $missing_currency) {
+        $incomplete_rates = $fresh['rates'];
+        unset($incomplete_rates[$missing_currency]);
+        ob_test_assert(!ob_bcv_rates_are_complete(array('rates' => $incomplete_rates)), "validation rejects missing {$missing_currency}");
+    }
 } else {
     fwrite(STDOUT, "SKIP: DOM parser test (ext-dom not installed)\n");
 }

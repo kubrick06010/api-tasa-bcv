@@ -93,9 +93,19 @@ if (is_wp_error($result)) {
     exit(1);
 }
 
+$expected = array_keys(ob_bcv_supported_selectors());
+foreach ($expected as $currency) {
+    if (!isset($result['rates'][$currency]) || !is_numeric($result['rates'][$currency]) || (float) $result['rates'][$currency] <= 0) {
+        fwrite(STDERR, "ERROR: missing or invalid {$currency}\n");
+        exit(1);
+    }
+}
+
 echo "OK: BCV live test\n";
 echo 'USD: ' . $result['rates']['USD'] . PHP_EOL;
 echo 'EUR: ' . $result['rates']['EUR'] . PHP_EOL;
 echo 'CNY: ' . $result['rates']['CNY'] . PHP_EOL;
+echo 'TRY: ' . $result['rates']['TRY'] . PHP_EOL;
+echo 'RUB: ' . $result['rates']['RUB'] . PHP_EOL;
 echo 'Date: ' . ($result['date'] ?? '') . PHP_EOL;
 echo "HTTP: 200\n";

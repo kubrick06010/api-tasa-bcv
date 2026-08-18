@@ -2,7 +2,7 @@
 # This file is distributed under the same license as the Tasas BCV plugin.
 msgid ""
 msgstr ""
-"Project-Id-Version: Tasas BCV 1.1.0\n"
+"Project-Id-Version: Tasas BCV 1.2.1\n"
 "Report-Msgid-Bugs-To: octavio.rossell@gmail.com\n"
 "POT-Creation-Date: 2026-08-14 20:37-0400\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
