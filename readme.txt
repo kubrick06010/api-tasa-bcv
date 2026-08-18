@@ -19,11 +19,11 @@ Automatically fetches and displays official currency exchange rates published by
 * **Official Exchange Rates**: Retrieves rates for USD, EUR, CNY, TRY, and RUB.
 * **Transient Caching**: Caches responses for 4 hours (14,400 seconds) to ensure optimal site performance and avoid unnecessary external requests.
 * **Easy Integration**: Use the `[tasa_bcv]` shortcode in posts, pages, sidebars, footer widgets, or custom Gutenberg blocks.
-* **Currency Selection**: Use `[tasa_bcv moneda="USD"]`, `[tasa_bcv moneda="TRY"]`, or `[tasa_bcv moneda="RUB"]`; the `decimales` attribute controls precision from 0 to 6.
+* **Currency Selection**: Use `[tasa_bcv moneda="USD"]`, `[tasa_bcv moneda="EUR"]`, `[tasa_bcv moneda="CNY"]`, `[tasa_bcv moneda="TRY"]`, or `[tasa_bcv moneda="RUB"]`; the `decimales` attribute controls precision from 0 to 6.
 * **Clean & Responsive Design**: Pre-styled minimalist layout that fits into any WordPress theme.
 * **Localization Ready**: Fully translatable (includes Spanish and English translations out of the box).
 * **REST API**: Exposes read-only rates at `/wp-json/tasas-bcv/v1/rates`.
-* **Resilience**: Uses a fresh cache and a last-known-good fallback during temporary BCV failures.
+* **Resilience**: Uses a fresh cache for 4 hours and a last-known-good fallback for up to 7 days during temporary BCV failures; fallback responses are marked stale.
 * **Testing**: Includes offline smoke tests and a live test against the BCV site for all five currencies.
 
 ### Developer & Repository Info
@@ -49,10 +49,13 @@ You can insert `[tasa_bcv]` into any post, page, block editor, HTML widget, side
 Yes. It performs a read-only HTTP request to the public BCV portal and safely cleans XML parsing errors without side effects on your server environment.
 
 = Does it provide a REST API? =
-Yes. `GET /wp-json/tasas-bcv/v1/rates` returns the five rates and a `stale` flag. It returns HTTP 503 when no valid current or last-known-good data exists.
+Yes. `GET /wp-json/tasas-bcv/v1/rates` is read-only and returns the five rates and a `stale` flag. It returns HTTP 200 for current or last-known-good data, and HTTP 503 when no valid data exists.
+
+= How can I run the tests? =
+Run `php -l tasas-bcv-automaticas.php`, `php -l tests/smoke.php`, `php -l tests/live.php`, `php tests/smoke.php`, and `php tests/live.php`. The smoke test uses fixtures without WordPress; the live test makes a real BCV request.
 
 = Why is TLS verification disabled for the BCV request? =
-This is a temporary workaround for a certificate-chain problem observed with certain PHP/OpenSSL clients. It applies only to `https://www.bcv.org.ve`, is documented in the source, and should be removed when the BCV chain is fixed; verification is not disabled globally.
+A certificate-chain validation issue has been observed with certain PHP/OpenSSL clients connecting to BCV (`unable to get local issuer certificate`), while the system `curl` client may work correctly. This temporary workaround applies only to `https://www.bcv.org.ve`, is documented in the source, and should be removed when the BCV chain works correctly with affected clients; verification is not disabled globally.
 
 == Changelog ==
 
