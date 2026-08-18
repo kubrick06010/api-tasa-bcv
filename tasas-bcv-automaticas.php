@@ -3,7 +3,7 @@
 Plugin Name: Tasas BCV
 Plugin URI: https://github.com/kubrick06010/api-tasa-bcv
 Description: Extrae las tasas oficiales de divisas del BCV (Banco Central de Venezuela), las expone por shortcode y REST API, y conserva el último valor válido cuando la fuente no está disponible.
-Version: 1.2.0
+Version: 1.2.1
 Author: Octavio Rossell Tabet
 Author URI: https://github.com/octaviotron
 License: GPLv2 or later
@@ -23,6 +23,21 @@ function ob_tasas_bcv_load_textdomain() {
     load_plugin_textdomain('tasas-bcv-automaticas', false, dirname(plugin_basename(__FILE__)) . '/languages');
 }
 add_action('init', 'ob_tasas_bcv_load_textdomain');
+
+/**
+ * Return the currencies and HTML IDs published by BCV.
+ *
+ * @return array<string, string>
+ */
+function ob_bcv_supported_selectors() {
+    return array(
+        'USD' => 'dolar',
+        'EUR' => 'euro',
+        'CNY' => 'yuan',
+        'TRY' => 'lira',
+        'RUB' => 'rublo',
+    );
+}
 
 /**
  * Parse BCV HTML into a normalized data structure.
@@ -46,11 +61,7 @@ function ob_parsear_tasas_bcv($html) {
     }
 
     $xpath = new DOMXPath($dom);
-    $selectors = array(
-        'USD' => 'dolar',
-        'EUR' => 'euro',
-        'CNY' => 'yuan',
-    );
+    $selectors = ob_bcv_supported_selectors();
     $rates = array();
 
     foreach ($selectors as $currency => $id) {
@@ -125,7 +136,7 @@ function ob_bcv_rates_are_complete($data) {
         return false;
     }
 
-    foreach (array('USD', 'EUR', 'CNY') as $currency) {
+    foreach (array_keys(ob_bcv_supported_selectors()) as $currency) {
         if (!isset($data['rates'][$currency]) || !is_numeric($data['rates'][$currency]) || (float) $data['rates'][$currency] <= 0) {
             return false;
         }
@@ -145,7 +156,7 @@ function ob_fetch_tasas_bcv() {
         // TEMPORAL: BCV presenta problemas de validación de cadena para
         // determinados clientes OpenSSL. Eliminar cuando BCV corrija TLS.
         'sslverify'  => false,
-        'user-agent' => 'WordPress/Tasas-BCV 1.2.0',
+        'user-agent' => 'WordPress/Tasas-BCV 1.2.1',
     ));
 
     if (is_wp_error($response)) {
